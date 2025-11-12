@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <fstream>
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 
@@ -21,16 +22,16 @@ struct Pipe{
 
 sf::Text getText(const sf::Font* font, const std::string& text, const sf::Color color, sf::Vector2<float> pos, sf::Vector2<float> scale);
 void handlePipe(sf::RenderWindow* window, float deltaTime, sf::Texture* pipeTex0, sf::Texture* pipeTex1, Player* player, Pipe* p, int* score, sf::Sprite* playerSprite, sf::Music* sound);
+bool editHighscore(int score_local);
+int getHighscore();
 
 int main(){
-    srand(0);
 
     sf::RenderWindow window{sf::VideoMode({560, 960}), "Flappy Bird", sf::Style::Close | sf::Style::Titlebar, sf::State::Windowed};
 
     sf::Image icon;
     if (!icon.loadFromFile("assets/textures/bird.png")) return 1;
     window.setIcon(icon);
-
 
     float velocity = 0.0f;
     float gravity = 1000.0f;
@@ -41,6 +42,8 @@ int main(){
     bool spaceKeyReleased = true;
     bool randomKeyPressed = false;
     int respawnTimer = 0;
+    bool scoreBeaten = false;
+    int highscore = 0;
 
     Player player;
 
@@ -61,7 +64,7 @@ int main(){
 
    sf::Clock clock{};
 
-    // Start the game loop
+    srand(time(0));
     while (window.isOpen())
     {
         float deltaTime = (clock.restart()).asSeconds();
@@ -131,6 +134,8 @@ int main(){
                 gameOver = true;
                 respawnTimer = 1000;
                 lose_ogg.play();
+                if (editHighscore(score)) scoreBeaten = true;
+                highscore = getHighscore();
             }
         } 
             for(auto& p : pipes) handlePipe(&window, deltaTime, &(pipeTex[0]), &(pipeTex[1]), &player, p, &score, &playerSprite, &point_ogg);
@@ -141,8 +146,14 @@ int main(){
             window.draw(getText(&horrendo_ttf, "GAME OVER", sf::Color::Red, {160, 300}, {1.5, 1.5}));
             window.draw(getText(&arial_ttf, ("Puntos: " + std::to_string(score)), sf::Color::Yellow, {220, 400}, {1, 1}));
             window.draw(getText(&arial_ttf, "Pulsa cualquier tecla para reiniciar", sf::Color::White, {120, 440}, {1, 1}));
+            if(scoreBeaten) {
+                window.draw(getText(&arial_ttf, "Nuevo record!", sf::Color::Green, {170, 460}, {1, 1}));
+            } else {
+                window.draw(getText(&arial_ttf, ("Tu mejor puntuacion es: " + std::to_string(highscore)), sf::Color::Green, {140, 460}, {1, 1}));
+            }
             respawnTimer--;
             if(randomKeyPressed && respawnTimer < 0) {
+                srand(time(0));
                 for (auto& p : pipes) delete p;
                 pipes.clear();
                 player.colision = false;
@@ -151,6 +162,7 @@ int main(){
                 player.y = 10;
                 playerSprite.setRotation(sf::degrees(0));
                 playerSprite.setColor(sf::Color::White);
+                scoreBeaten = false;
                 velocity = 0.0f;
                 pipeSpawnTimer = 0.0f;
                 gameOver = false;
@@ -216,4 +228,28 @@ void handlePipe(sf::RenderWindow* window, float deltaTime, sf::Texture* pipeTex0
         (*score)++;
         sound->play();
     }
+}
+
+bool editHighscore(int score_local) { using namespace std;
+    ifstream fin("highscore.dat");
+    if(!fin.is_open()) throw runtime_error("ddd");
+    int score_saved = 0;
+    fin >> score_saved;
+    fin.close();
+
+    if (score_local > score_saved) {
+     ofstream fout("highscore.dat", ios::trunc);
+     if(!fout.is_open()) throw runtime_error("ddsssd");
+     fout << score_local;
+     fout.close(); 
+     return true;
+    }
+    return false;
+}
+
+int getHighscore() { using namespace std;
+    ifstream f("highscore.dat");
+    int s = 0;
+    f >> s;
+    return s;
 }
